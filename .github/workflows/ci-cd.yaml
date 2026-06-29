@@ -1,6 +1,7 @@
 name: CI/CD — Boutique Microservices
 
 on:
+  # Auto trigger on push
   push:
     branches: [ main ]
     paths:
@@ -9,6 +10,22 @@ on:
       - 'payment-service/**'
       - 'notification-service/**'
       - 'frontend/**'
+
+  # Manual trigger button ← ADD THIS
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Which service to build?'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - product-service
+          - cart-service
+          - payment-service
+          - notification-service
+          - frontend
 
 env:
   REGISTRY: docker.io
