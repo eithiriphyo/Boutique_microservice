@@ -6,10 +6,10 @@ A full-stack luxury e-commerce application built with microservices architecture
 
 ## Online Boutique Website
 
-![Boutique_microservice](images/Product.png)
-![Boutique_microservice](images/Payment.png)
-![Boutique_microservice](images/Order.png)
-![Boutique_microservice](images/Cart.png)
+![Boutique_microservice](Images/Product.png)
+![Boutique_microservice](Images/Payment.png)
+![Boutique_microservice](Images/Order.png)
+![Boutique_microservice](Images/Cart.png)
 
 ## Architecture
 
@@ -176,21 +176,6 @@ Open Browser and verify **http://localhost:8080**
 - Frontend -> HTML5, CSS3, JavaScript 
 
 ---
-
-## Online Boutique Website
-
-![Boutique_microservice
-](images/Product.png)
-
-![Boutique_microservice
-](images/Payment.png)
-
-![Boutique_microservice
-](images/Order.png)
-
-![Boutique_microservice
-](images/Cart.png)
-
 
 ## 👩‍💻 Author
 
