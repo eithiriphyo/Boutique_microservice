@@ -1,4 +1,4 @@
-# 🛍️ Boutique Microservices — Kubernetes DevOps Demo
+# 🛍️ Boutique Microservices
 
 A full-stack luxury e-commerce application built with microservices architecture, deployed on Kubernetes with Nginx Ingress.
 
@@ -14,7 +14,7 @@ localhost:8080 (kubectl port-forward)
 Nginx Ingress Controller
    ↓
 ┌──────────────┬─────────────┬─────────────────┬
-│              │             │                 │                      │
+│              │             │                 │
 product-svc  cart-svc   payment-svc    notification-svc
   :3001        :3002        :3003              :3004
 
@@ -129,7 +129,24 @@ kubectl apply -f manifests/ingress.yaml
 ### Step 6 — Verify everything is running
 
 ```bash
-kubectl get pods,services
+- kubectl get pods,services
+- kubectl get pod
+NAME                                    READY   STATUS    RESTARTS   AGE
+cart-service-84465fb9f6-6pprl           1/1     Running   0          4h3m
+frontend-74b77846d9-lzjns               1/1     Running   0          4h4m
+notification-service-85c9d7cf49-9lrqp   1/1     Running   0          4h3m
+payment-service-66bf58cdf-ghhxl         1/1     Running   0          4h3m
+product-service-597c8d4c59-mq92q        1/1     Running   0          4h2m
+
+kubectl get svc
+NAME                       TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+cart-service-svc           ClusterIP   10.96.238.191   <none>        3002/TCP   4h3m
+frontend-svc               ClusterIP   10.96.62.233    <none>        80/TCP     4h4m
+kubernetes                 ClusterIP   10.96.0.1       <none>        443/TCP    4h9m
+notification-service-svc   ClusterIP   10.96.30.69     <none>        3004/TCP   4h3m
+payment-service-svc        ClusterIP   10.96.97.141    <none>        3003/TCP   4h2m
+product-service-svc        ClusterIP   10.96.75.80     <none>        3001/TCP   4h2m
+
 ```
 
 ### Step 7 — Access the application
@@ -152,6 +169,17 @@ Open Browser and verify **http://localhost:8080**
 - Frontend -> HTML5, CSS3, JavaScript 
 
 ---
+
+## Online Boutique Website
+
+![Boutique_microservice
+](images/Product.png)
+![Boutique_microservice
+](images/Payment.png)
+![Boutique_microservice
+](images/Order.png)
+![Boutique_microservice
+](images/Cart.png)
 
 
 ## 👩‍💻 Author
