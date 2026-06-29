@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-service-svc
+  labels:
+    app: product-service
+spec:
+  selector:
+    app: product-service
+  ports:
+  - protocol: TCP
+    port: 3001        # use same port as the app — cleaner for inter-service calls
+    targetPort: 3001
+  type: ClusterIP     # explicit — default but good to state
+
+  
