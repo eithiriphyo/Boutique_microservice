@@ -1,0 +1,216 @@
+name: CI/CD — Boutique Microservices
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'product-service/**'
+      - 'cart-service/**'
+      - 'payment-service/**'
+      - 'notification-service/**'
+      - 'frontend/**'
+
+env:
+  REGISTRY: docker.io
+  IMAGE_PREFIX: eithiriphyo
+
+jobs:
+
+  #  Detect which services changed 
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      product:      ${{ steps.filter.outputs.product }}
+      cart:         ${{ steps.filter.outputs.cart }}
+      payment:      ${{ steps.filter.outputs.payment }}
+      notification: ${{ steps.filter.outputs.notification }}
+      frontend:     ${{ steps.filter.outputs.frontend }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dorny/paths-filter@v3
+      id: filter
+      with:
+        filters: |
+          product:
+            - 'product-service/**'
+          cart:
+            - 'cart-service/**'
+          payment:
+            - 'payment-service/**'
+          notification:
+            - 'notification-service/**'
+          frontend:
+            - 'frontend/**'
+
+  #  Build & Push product-service 
+  build-product:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.product == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and push product-service
+      uses: docker/build-push-action@v5
+      with:
+        context: ./product-service
+        push: true
+        tags: |
+          ${{ env.IMAGE_PREFIX }}/product-service:latest
+          ${{ env.IMAGE_PREFIX }}/product-service:${{ github.sha }}
+
+  #  Build & Push cart-service 
+  build-cart:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.cart == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and push cart-service
+      uses: docker/build-push-action@v5
+      with:
+        context: ./cart-service
+        push: true
+        tags: |
+          ${{ env.IMAGE_PREFIX }}/cart-service:latest
+          ${{ env.IMAGE_PREFIX }}/cart-service:${{ github.sha }}
+
+  #  Build & Push payment-service 
+  build-payment:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.payment == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and push payment-service
+      uses: docker/build-push-action@v5
+      with:
+        context: ./payment-service
+        push: true
+        tags: |
+          ${{ env.IMAGE_PREFIX }}/payment-service:latest
+          ${{ env.IMAGE_PREFIX }}/payment-service:${{ github.sha }}
+
+  #  Build & Push notification-service 
+  build-notification:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.notification == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and push notification-service
+      uses: docker/build-push-action@v5
+      with:
+        context: ./notification-service
+        push: true
+        tags: |
+          ${{ env.IMAGE_PREFIX }}/notification-service:latest
+          ${{ env.IMAGE_PREFIX }}/notification-service:${{ github.sha }}
+
+  #  Build & Push frontend 
+  build-frontend:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and push frontend
+      uses: docker/build-push-action@v5
+      with:
+        context: ./frontend
+        push: true
+        tags: |
+          ${{ env.IMAGE_PREFIX }}/boutique-frontend:latest
+          ${{ env.IMAGE_PREFIX }}/boutique-frontend:${{ github.sha }}
+
+  #  Deploy to Kubernetes 
+  deploy:
+    needs:
+      - build-product
+      - build-cart
+      - build-payment
+      - build-notification
+      - build-frontend
+    if: |
+      always() &&
+      !contains(needs.*.result, 'failure') &&
+      contains(needs.*.result, 'success')
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+
+    - name: Configure kubeconfig
+      run: |
+        mkdir -p $HOME/.kube
+        echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+
+    - name: Update image tags and deploy
+      run: |
+        SHA=${{ github.sha }}
+
+        # Only update services that were rebuilt
+        if [ "${{ needs.build-product.result }}" == "success" ]; then
+          kubectl set image deployment/product-service \
+            product-service=${{ env.IMAGE_PREFIX }}/product-service:$SHA
+        fi
+        if [ "${{ needs.build-cart.result }}" == "success" ]; then
+          kubectl set image deployment/cart-service \
+            cart-service=${{ env.IMAGE_PREFIX }}/cart-service:$SHA
+        fi
+        if [ "${{ needs.build-payment.result }}" == "success" ]; then
+          kubectl set image deployment/payment-service \
+            payment-service=${{ env.IMAGE_PREFIX }}/payment-service:$SHA
+        fi
+        if [ "${{ needs.build-notification.result }}" == "success" ]; then
+          kubectl set image deployment/notification-service \
+            notification-service=${{ env.IMAGE_PREFIX }}/notification-service:$SHA
+        fi
+        if [ "${{ needs.build-frontend.result }}" == "success" ]; then
+          kubectl set image deployment/frontend \
+            frontend=${{ env.IMAGE_PREFIX }}/boutique-frontend:$SHA
+        fi
+
+    - name: Verify rollout
+      run: |
+        kubectl rollout status deployment/product-service --timeout=60s || true
+        kubectl rollout status deployment/cart-service --timeout=60s || true
+        kubectl rollout status deployment/payment-service --timeout=60s || true
+        kubectl rollout status deployment/notification-service --timeout=60s || true
+        kubectl get pods
