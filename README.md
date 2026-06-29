@@ -1,184 +1,104 @@
-# 🛍️ Boutique Microservices — DevOps Demo Project
+# 🛍️ Boutique Microservices
 
-A full-stack luxury e-commerce application built with microservices architecture, containerised with Docker, orchestrated with Kubernetes, and automated with a CI/CD pipeline using GitHub Actions.
-
-> Built as a hands-on DevOps portfolio project following a phased approach — from local Docker Compose through to Kubernetes and CI/CD automation.
+A full-stack luxury e-commerce application built with microservices architecture, deployed on Kubernetes with Nginx Ingress.
 
 ---
 
-## 📐 Architecture Overview
+## Architecture
 
 ```
-Browser (index.html)
-        ↓  localhost:8080
-   port-forward
-        ↓
-   Nginx Ingress  (172.18.0.6)
-        ↓
-  ┌─────┬──────┬─────────┬──────────────┐
-  │     │      │         │              │
-:3001 :3002  :3003     :3004
-product cart  payment  notification
-service service service   service
+Browser
+   ↓
+localhost:8080 (kubectl port-forward)
+   ↓
+Nginx Ingress Controller
+   ↓
+┌──────────────┬─────────────┬─────────────────┬
+│              │             │                 │
+product-svc  cart-svc   payment-svc    notification-svc
+  :3001        :3002        :3003              :3004
+
 ```
 
-### Services
+### Kubernetes Resources
 
-| Service | Port | Responsibility | Tech |
-|---|---|---|---|
-| `product-service` | 3001 | Product catalogue | Node.js + Express |
-| `cart-service` | 3002 | Cart session management | Node.js + Express |
-| `payment-service` | 3003 | Payment processing (Stripe mock) | Node.js + Express |
-| `notification-service` | 3004 | Order confirmation events | Node.js + Express |
-| `frontend` | 80 | Luxury boutique UI | HTML + CSS + JS |
+| Resource | Count | Purpose |
+|---|---|---|
+| Deployments | 5 | One per service + frontend |
+| Services | 5 | ClusterIP — internal routing |
+| Ingress | 1 | Nginx — path-based routing |
+| Ingress Controller | 1 | Nginx — handles all traffic |
 
 ---
 
-## 🗂️ Project Structure
+## Project Structure
 
 ```
 boutique-microservices/
-├── .github/
-│   └── workflows/
-│       └── ci-cd.yml              # GitHub Actions CI/CD pipeline
-├── product-service/
-│   ├── src/index.js
-│   ├── Dockerfile
-│   └── package.json
-├── cart-service/
-│   ├── src/index.js
-│   ├── Dockerfile
-│   └── package.json
-├── payment-service/
-│   ├── src/index.js
-│   ├── Dockerfile
-│   └── package.json
-├── notification-service/
-│   ├── src/index.js
-│   ├── Dockerfile
-│   └── package.json
-├── frontend/
-│   ├── index.html
-│   └── Dockerfile
-├── manifests/
-│   ├── product-service/
-│   │   ├── deployment.yaml
-│   │   └── service.yaml
-│   ├── cart-service/
-│   │   ├── deployment.yaml
-│   │   └── service.yaml
-│   ├── payment-service/
-│   │   ├── deployment.yaml
-│   │   └── service.yaml
-│   ├── notification-service/
-│   │   ├── deployment.yaml
-│   │   └── service.yaml
-│   ├── frontend/
-│   │   ├── deployment.yaml
-│   │   └── service.yaml
-│   └── ingress.yaml
-└── docker-compose.yml
+└── manifests/
+    ├── product-service/
+    │   ├── deployment.yaml
+    │   └── service.yaml
+    ├── cart-service/
+    │   ├── deployment.yaml
+    │   └── service.yaml
+    ├── payment-service/
+    │   ├── deployment.yaml
+    │   └── service.yaml
+    ├── notification-service/
+    │   ├── deployment.yaml
+    │   └── service.yaml
+    ├── frontend/
+    │   ├── deployment.yaml
+    │   └── service.yaml
+    └── ingress.yaml
 ```
 
 ---
 
-## 🚀 Getting Started
+## Prerequisites
 
-### Prerequisites
-
-| Tool | Version | Purpose |
-|---|---|---|
-| Node.js | v20+ | Run services locally |
-| Docker Desktop | Latest | Build and run containers |
-| kubectl | Latest | Manage Kubernetes cluster |
-| Kind | Latest | Local Kubernetes cluster |
-| Git | Latest | Version control |
+- Docker Desktop
+- kind
+- Node.js
 
 ---
 
-## 📦 Phase 1 — Local Development (Docker Compose)
+##  Deployment Guide
 
-Run all services locally with a single command.
-
-### 1. Clone the repository
+### Step 1 — Create the Kind cluster
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/boutique-microservices.git
-cd boutique-microservices
+kind create cluster --name desktop
+kubectl get nodes
 ```
 
-### 2. Install dependencies for all services
+Expected output:
+```
+NAME                    STATUS   ROLES           AGE   VERSION
+desktop-control-plane   Ready    control-plane   1m    v1.34.x
+desktop-worker          Ready    <none>          1m    v1.34.x
+```
+
+### Step 2 — Build and push Docker images
 
 ```bash
-cd product-service      && npm install && cd ..
-cd cart-service         && npm install && cd ..
-cd payment-service      && npm install && cd ..
-cd notification-service && npm install && cd ..
+# Build all images
+docker build -t eithiriphyo/product-service:v1.0      ./product-service
+docker build -t eithiriphyo/cart-service:v1.0         ./cart-service
+docker build -t eithiriphyo/payment-service:v1.0      ./payment-service
+docker build -t eithiriphyo/notification-service:v1.0 ./notification-service
+docker build -t eithiriphyo/boutique-frontend:v1.0    ./frontend
+
+# Push to Docker Hub
+docker push eithiriphyo/product-service:v1.0
+docker push eithiriphyo/cart-service:v1.0
+docker push eithiriphyo/payment-service:v1.0
+docker push eithiriphyo/notification-service:v1.0
+docker push eithiriphyo/boutique-frontend:v1.0
 ```
 
-### 3. Start all services
-
-```bash
-docker compose up --build
-```
-
-### 4. Verify all services are running
-
-```bash
-curl http://localhost:8080/health
-curl http://localhost:8080/products
-curl http://localhost:8080/cart/test-session
-curl http://localhost:8080/notifications
-```
-
-### 5. Test the full payment flow
-
-```bash
-# Add item to cart
-curl -X POST http://localhost:8080/cart/session-123/items \
-  -H "Content-Type: application/json" \
-  -d '{"productId":1,"name":"Wireless Headphones","price":79.99,"quantity":1}'
-
-# Process payment (success)
-curl -X POST http://localhost:8080/payments/process \
-  -H "Content-Type: application/json" \
-  -d '{"sessionId":"session-123","cardNumber":"4242424242424242","amount":79.99,"customerEmail":"test@example.com"}'
-
-# Test declined card (any card ending in 0000)
-curl -X POST http://localhost:8080/payments/process \
-  -H "Content-Type: application/json" \
-  -d '{"sessionId":"session-123","cardNumber":"4111111111110000","amount":79.99,"customerEmail":"test@example.com"}'
-```
-
----
-
-## ☸️ Phase 2 — Kubernetes Deployment
-
-Deploy the full stack to a local Kind Kubernetes cluster.
-
-### 1. Create Kind cluster
-
-```bash
-kind create cluster --name boutique
-```
-
-### 2. Build and push Docker images
-
-```bash
-docker build -t YOUR_DOCKERHUB_USERNAME/product-service:v1.0      ./product-service
-docker build -t YOUR_DOCKERHUB_USERNAME/cart-service:v1.0         ./cart-service
-docker build -t YOUR_DOCKERHUB_USERNAME/payment-service:v1.0      ./payment-service
-docker build -t YOUR_DOCKERHUB_USERNAME/notification-service:v1.0 ./notification-service
-docker build -t YOUR_DOCKERHUB_USERNAME/boutique-frontend:v1.0    ./frontend
-
-docker push YOUR_DOCKERHUB_USERNAME/product-service:v1.0
-docker push YOUR_DOCKERHUB_USERNAME/cart-service:v1.0
-docker push YOUR_DOCKERHUB_USERNAME/payment-service:v1.0
-docker push YOUR_DOCKERHUB_USERNAME/notification-service:v1.0
-docker push YOUR_DOCKERHUB_USERNAME/boutique-frontend:v1.0
-```
-
-### 3. Deploy all services
+### Step 3 — Deploy all services to Kubernetes
 
 ```bash
 kubectl apply -f manifests/product-service/
@@ -188,190 +108,89 @@ kubectl apply -f manifests/notification-service/
 kubectl apply -f manifests/frontend/
 ```
 
-### 4. Install Nginx Ingress Controller
+### Step 4 — Install Nginx Ingress Controller
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.1/deploy/static/provider/cloud/deploy.yaml
 
-# Wait for it to be ready
+# Wait for controller to be ready
 kubectl wait --namespace ingress-nginx \
   --for=condition=ready pod \
   --selector=app.kubernetes.io/component=controller \
-  --timeout=120s
+  --timeout=180s
 ```
 
-### 5. Apply the Ingress
+### Step 5 — Apply Ingress routing rules
 
 ```bash
 kubectl apply -f manifests/ingress.yaml
 ```
 
-### 6. Verify all pods are running
+### Step 6 — Verify everything is running
 
 ```bash
-kubectl get pods,services
+- kubectl get pods,services
+- kubectl get pod
+NAME                                    READY   STATUS    RESTARTS   AGE
+cart-service-84465fb9f6-6pprl           1/1     Running   0          4h3m
+frontend-74b77846d9-lzjns               1/1     Running   0          4h4m
+notification-service-85c9d7cf49-9lrqp   1/1     Running   0          4h3m
+payment-service-66bf58cdf-ghhxl         1/1     Running   0          4h3m
+product-service-597c8d4c59-mq92q        1/1     Running   0          4h2m
+
+kubectl get svc
+NAME                       TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+cart-service-svc           ClusterIP   10.96.238.191   <none>        3002/TCP   4h3m
+frontend-svc               ClusterIP   10.96.62.233    <none>        80/TCP     4h4m
+kubernetes                 ClusterIP   10.96.0.1       <none>        443/TCP    4h9m
+notification-service-svc   ClusterIP   10.96.30.69     <none>        3004/TCP   4h3m
+payment-service-svc        ClusterIP   10.96.97.141    <none>        3003/TCP   4h2m
+product-service-svc        ClusterIP   10.96.75.80     <none>        3001/TCP   4h2m
+
 ```
 
-Expected output:
-```
-NAME                                        READY   STATUS    RESTARTS   AGE
-pod/cart-service-xxx                        1/1     Running   0          5m
-pod/notification-service-xxx               1/1     Running   0          5m
-pod/payment-service-xxx                    1/1     Running   0          5m
-pod/product-service-xxx                    1/1     Running   0          5m
-pod/frontend-xxx                           1/1     Running   0          5m
-```
-
-### 7. Access the application
+### Step 7 — Access the application
 
 ```bash
-# Start port-forward (keep this terminal open)
-kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8080:80
-
-# Open browser at http://localhost:8080
+# Run in a dedicated terminal — keep it open
+kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8080:80 &
 ```
 
-### 8. Test all routes
-
-```bash
-curl http://localhost:8080/products
-curl http://localhost:8080/cart/test-session
-curl http://localhost:8080/notifications
-
-# Payment test
-curl -X POST http://localhost:8080/payments/process \
-  -H "Content-Type: application/json" \
-  -d '{"sessionId":"k8s-test","cardNumber":"4242424242424242","amount":99.99,"customerEmail":"test@example.com"}'
-```
-
-### Useful Kubernetes Commands
-
-```bash
-# Check pod logs
-kubectl logs -l app=product-service --tail=50
-
-# Describe a pod
-kubectl describe pod -l app=product-service
-
-# Execute into a pod
-kubectl exec -it POD_NAME -- /bin/sh
-
-# Rolling update after new image push
-kubectl set image deployment/product-service \
-  product-service=YOUR_USERNAME/product-service:latest
-
-# Watch rollout status
-kubectl rollout status deployment/product-service
-
-# Rollback if something goes wrong
-kubectl rollout undo deployment/product-service
-```
+Open Browser and verify **http://localhost:8080**
 
 ---
 
-## ⚙️ Phase 3 — CI/CD Pipeline (GitHub Actions)
+##  Tech Stack
 
-Automatically builds and pushes Docker images to Docker Hub on every code push.
-
-### Pipeline Flow
-
-```
-git push to main
-      ↓
-GitHub Actions detects which service changed
-      ↓
-Builds only the changed service image
-      ↓
-Pushes new image to Docker Hub
-      ↓
-Manual kubectl deploy locally
-```
-
-### Setup
-
-#### 1. Add GitHub Secrets
-
-Go to your repo → **Settings** → **Secrets and variables** → **Actions**
-
-| Secret Name | Value |
-|---|---|
-| `DOCKERHUB_USERNAME` | Your Docker Hub username |
-| `DOCKERHUB_TOKEN` | Your Docker Hub Personal Access Token |
-
-To create a Docker Hub token: `hub.docker.com` → Account Settings → Security → Personal Access Tokens → Generate New Token
-
-#### 2. Pipeline triggers automatically on push
-
-The pipeline only builds services that have changed:
-
-```
-# Change product-service code → only product-service image is rebuilt
-# Change cart-service code    → only cart-service image is rebuilt
-# Change multiple services    → only those services are rebuilt
-```
-
-#### 3. Manual trigger
-
-Go to GitHub → **Actions** tab → **CI/CD — Boutique Microservices** → **Run workflow**
-
-#### 4. Deploy after pipeline completes
-
-```bash
-# Update the deployment with the new image
-kubectl set image deployment/product-service \
-  product-service=YOUR_USERNAME/product-service:latest
-
-kubectl rollout status deployment/product-service
-```
+- Runtime    -> Node.js 
+- Containerisation -> Docker
+- Image Registry -> Docker Hub
+- Orchestration -> Kubernetes(Kind)
+- Frontend -> HTML5, CSS3, JavaScript 
 
 ---
 
-## 🔑 Payment Testing
+## Online Boutique Website
 
-| Card Number | Result |
-|---|---|
-| `4242 4242 4242 4242` | ✅ Payment success |
-| Any card ending in `0000` | ❌ Payment declined |
+![Boutique_microservice
+](images/Product.png)
+![Boutique_microservice
+](images/Payment.png)
+![Boutique_microservice
+](images/Order.png)
+![Boutique_microservice
+](images/Cart.png)
 
----
-
-## 🏗️ Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Services | Node.js, Express |
-| Containerisation | Docker |
-| Orchestration | Kubernetes (Kind) |
-| Ingress | Nginx Ingress Controller |
-| CI/CD | GitHub Actions |
-| Image Registry | Docker Hub |
-| Frontend | HTML, CSS, JavaScript |
-
----
-
-## 📊 DevOps Concepts Demonstrated
-
-- ✅ Microservices architecture — each service independently deployable
-- ✅ Containerisation — Docker images for each service
-- ✅ Container orchestration — Kubernetes deployments, services, ingress
-- ✅ Health probes — liveness and readiness checks on every pod
-- ✅ Resource management — CPU and memory requests/limits
-- ✅ Service discovery — inter-service communication via Kubernetes DNS
-- ✅ Rolling updates — zero-downtime deployments with `kubectl set image`
-- ✅ Rollback — instant rollback with `kubectl rollout undo`
-- ✅ CI/CD automation — GitHub Actions builds and pushes on every commit
-- ✅ Path-based routing — Nginx Ingress routes traffic to correct services
-
----
 
 ## 👩‍💻 Author
 
-**Ei Thiri Phyo**
-DevOps Engineer in Training
-[GitHub](https://github.com/YOUR_USERNAME) · [Docker Hub](https://hub.docker.com/u/eithiriphyo)
+**Ei Thiri Phyo** — DevOps Engineer
+
+[![GitHub](https://img.shields.io/badge/GitHub-eithiriphyo-181717?style=flat&logo=github)](https://github.com/eithiriphyo)
+[![Docker Hub](https://img.shields.io/badge/Docker_Hub-eithiriphyo-2496ED?style=flat&logo=docker&logoColor=white)](https://hub.docker.com/u/eithiriphyo)
 
 ---
 
 ## 📄 License
 
-MIT License — feel free to use this project as a reference for your own DevOps learning.
+MIT License — free to use as a reference for your own DevOps learning journey.
